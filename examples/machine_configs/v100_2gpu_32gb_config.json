@@ -1,4 +1,0 @@
-{"use_multiprocessing": true,
- "n_workers": 20,
- "n_gpus": 2,
- "pin_memory": false}
