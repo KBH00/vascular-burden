@@ -13,7 +13,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 
-# Adjust the import path to locate the parent directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
@@ -22,7 +21,6 @@ from models.models import FeatureReconstructor
 from utils.pytorch_ssim import SSIMLoss
 from models.feature_extractor import Extractor
 
-# Optional: You can use tqdm for progress bars
 try:
     from tqdm import tqdm
 except ImportError:
@@ -66,13 +64,11 @@ class InferenceDataset(Dataset):
         if len(slices) == 0:
             raise ValueError(f"No slices found in directory: {directory}")
         
-        # Handle 2D and 3D slices differently
         if slices[0].ndim == 2:
             volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
         else:
-            volume = slices[0]  # Assuming the first slice is already 3D
+            volume = slices[0]  
 
-        # Convert to torch tensor and add channel dimension
         volume = torch.tensor(volume, dtype=torch.float32).unsqueeze(0)  # Shape: (1, num_slices, 128, 128)
         
         # Resize to (1, num_slices, 128, 128, 128) if 3D
@@ -112,16 +108,13 @@ def visualize_anomaly_overlay(original_slice: torch.Tensor, anomaly_map: torch.T
         anomaly_map (torch.Tensor): The anomaly map of shape (H, W).
         save_path (str, optional): Path to save the visualization. If None, displays the plot.
     """
-    # Convert both tensors to numpy arrays
+
     original_slice = original_slice.squeeze().cpu().numpy()
     anomaly_map = anomaly_map.squeeze().cpu().numpy()
 
     plt.figure(figsize=(6, 6))
     
-    # Plot the original MR image in grayscale
     plt.imshow(original_slice, cmap='gray', interpolation='none')
-    
-    # Overlay the anomaly map with transparency (alpha)
     plt.imshow(anomaly_map, cmap='hot', alpha=0.5, interpolation='none')
     
     plt.colorbar()
@@ -160,7 +153,6 @@ def main():
 
     model = FeatureReconstructor(config).to(args.device)
     
-    # Corrected: Use load_state_dict to load the checkpoint
     model.load(args.checkpoint)
     model.eval()
 
@@ -174,7 +166,7 @@ def main():
 
     with torch.no_grad():
         for batch_idx, (volumes, directories) in enumerate(tqdm(inference_loader, desc="Inference")):
-            volumes = volumes.to(args.device)  # Shape: (B, 1, D, H, W)
+            volumes = volumes.to(args.device)  
             B, C, D, H, W = volumes.shape
 
             # Flatten the slices into (B*D, 1, H, W) for per-slice anomaly detection
