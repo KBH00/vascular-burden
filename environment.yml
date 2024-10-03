@@ -1,4 +1,4 @@
-name: anomaly_detection
+name: fae-vsc
 channels:
   - pytorch
   - anaconda
@@ -29,6 +29,3 @@ dependencies:
   - pip:
     - torchsummary
     - timm
-    - wandb
-variables:
-  DATAROOT: ~/datasets/
