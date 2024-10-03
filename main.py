@@ -3,7 +3,7 @@
 import argparse
 from dataload import get_dataloaders
 from models.models import FeatureReconstructor
-from utils.pytorch_ssim import SSIMLoss  # Adjust the import path as needed
+from utils.pytorch_ssim import SSIMLoss  
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -23,17 +23,15 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Obtain DataLoaders
     train_loader, validation_loader, test_loader = get_dataloaders(
         csv_path=args.csv_path,
         train_base_dir=args.train_base_dir,
         batch_size=args.batch_size,
-        transform=None,  # Uses default Normalize if None
+        transform=None,  
         validation_split=0.2,
         seed=42
     )
 
-    # Define model configuration
     from argparse import Namespace
     config = Namespace()
     config.image_size = 128
@@ -47,22 +45,16 @@ def main():
     config.loss_fn = 'mse'
     # config.in_channels will be set by FeatureReconstructor based on Extractor
 
-    # Initialize model
     model = FeatureReconstructor(config).to(args.device)
 
-    # Print model architecture
     print("Feature Autoencoder Encoder:")
     print(model.ae.enc)
     print("\nFeature Autoencoder Decoder:")
     print(model.ae.dec)
 
-    # Define optimizer
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-
-    # Define learning rate scheduler
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
-    # Training loop
     for epoch in range(1, args.epochs + 1):
         model.train()
         running_loss = 0.0
@@ -70,7 +62,6 @@ def main():
             volumes = volumes.to(args.device)  # Shape: (B, 1, D, H, W)
             B, C, D, H, W = volumes.shape
 
-            # Reshape to process all slices as individual samples
             volumes_slices = volumes.view(B * D, C, H, W)  # Shape: (B*D, 1, H, W)
 
             # Forward pass
@@ -80,7 +71,6 @@ def main():
 
             loss = loss_dict['rec_loss']
 
-            # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -90,11 +80,9 @@ def main():
             if (batch_idx + 1) % 10 == 0:
                 print(f"Epoch [{epoch}/{args.epochs}], Step [{batch_idx +1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
-        # Average loss for the epoch
         epoch_loss = running_loss / len(train_loader)
         print(f"Epoch [{epoch}/{args.epochs}], Average Loss: {epoch_loss:.4f}")
 
-        # Validation
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
@@ -112,7 +100,6 @@ def main():
         val_loss /= len(validation_loader)
         print(f"Validation Loss: {val_loss:.4f}")
 
-        # Step the scheduler
         scheduler.step()
 
         if epoch%5==0:

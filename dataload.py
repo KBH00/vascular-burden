@@ -185,9 +185,17 @@ def get_dataloaders(csv_path, train_base_dir, batch_size=4, transform=None, vali
     if transform is None:
         transform = transforms.Compose([
             transforms.Normalize((0.5,), (0.5,)),  
+            # Add data augmentation here
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(30),  # Random rotation by up to 30 degrees
+            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),  # Color jitter
+            # Additional augmentations can be added here
         ])
-
     torch.manual_seed(seed)
+
+    print("Data load....")
 
     train_directories = find_dcm_directories(train_base_dir)
     train_dataset = Dicom3DDataset(train_directories, transform=transform)
@@ -203,8 +211,7 @@ def get_dataloaders(csv_path, train_base_dir, batch_size=4, transform=None, vali
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-
-    print("Data load....")
+    print("Data Loader ready...")
     
     return train_loader, validation_loader, test_loader
 

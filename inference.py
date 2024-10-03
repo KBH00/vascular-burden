@@ -181,13 +181,13 @@ def main():
             for i in range(B):
                 dir_path = directories[i]
                 volume_id = os.path.basename(dir_path.rstrip('/\\'))
+                path_id = dir_path.split('/')[-1].replace('\\','.')
 
                 # Extract the original MR slice and corresponding anomaly map
                 original_slice = volumes[i, 0, middle_slice, :, :]  # Shape: (H, W)
                 single_anomaly_map = anomaly_map[i, middle_slice, 0, :, :]  # Shape: (H, W)
 
-                # Save or display the overlay
-                save_path = os.path.join(args.output_dir, f"{volume_id}_anomaly_overlay.png")
+                save_path = os.path.join(args.output_dir, f"{path_id}.png")
                 visualize_anomaly_overlay(original_slice, single_anomaly_map, save_path=save_path)
 
                 print(f"Volume: {volume_id}, Anomaly Score: {anomaly_score[i].item():.4f}")
