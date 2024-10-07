@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, random_split
-from convert_nifti import find_dcm_directories
 from torchvision import transforms
 from skimage.transform import resize
 from nilearn.masking import compute_brain_mask
@@ -37,19 +36,35 @@ class Nifti3DDataset(Dataset):
         nifti_data = nib.load(nii_file_path)
         volume = nifti_data.get_fdata().astype(np.float32)
 
-        # Skull stripping
         mask = compute_brain_mask(nifti_data)
         volume = volume * mask.get_fdata()
 
         volume_resized = F.interpolate(torch.tensor(volume).unsqueeze(0).unsqueeze(0), size=(128, 128, 128), mode='trilinear', align_corners=False)
         volume_resized = volume_resized.squeeze(0)
+        volume_resized = volume_resized.float()  
 
         if self.transform:
             volume_resized = self.transform(volume_resized)
 
         label = self.labels[idx] if self.labels is not None else -1
         return volume_resized, label
-    
+
+def find_dcm_directories(base_dir):
+    """
+    Recursively find all directories containing .dcm files.
+
+    Args:
+        base_dir (str): The base directory to search.
+
+    Returns:
+        list: List of directories containing at least one .dcm file.
+    """
+    dcm_directories = []
+    for root, dirs, files in os.walk(base_dir):
+        if any(file.endswith(".dcm") for file in files):
+            dcm_directories.append(root)
+    return dcm_directories
+ 
 def find_nii_directories(base_dir, modality="FLAIR"):
     """
     Recursively find all directories containing .nii files.
@@ -63,7 +78,7 @@ def find_nii_directories(base_dir, modality="FLAIR"):
     nii_directories = []
     for root, dirs, files in os.walk(base_dir):
         if any(file == "converted.nii" for file in files):
-            if root.count(modality) == 2:
+            if root.count(modality) == 1:
                 nii_directories.append(root)
             #else statement needed <<<!!!!
 

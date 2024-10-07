@@ -21,6 +21,12 @@ def find_dcm_directories(base_dir):
             dcm_directories.append(root)
     return dcm_directories
 
+import os
+import pydicom
+import numpy as np
+import nibabel as nib
+from skimage.transform import resize
+
 def dicom_to_nifti(dcm_directory):
     """
     Convert all DICOM files in the given directory to a NIfTI file.
@@ -29,10 +35,17 @@ def dicom_to_nifti(dcm_directory):
         dcm_directory (str): Directory containing the DICOM files.
 
     Returns:
-        str: Path to the generated NIfTI file.
+        str: Path to the generated or existing NIfTI file.
     """
+    nifti_file_path = os.path.join(dcm_directory, "converted.nii")
+    
+    # Check if the NIfTI file already exists
+    if os.path.exists(nifti_file_path):
+        print(f"NIfTI file already exists at: {nifti_file_path}")
+        return nifti_file_path
+
+    # Get sorted list of DICOM files in the directory
     dcm_files = sorted([f for f in os.listdir(dcm_directory) if f.endswith(".dcm")])
-    print(dcm_files)
     if not dcm_files:
         raise ValueError(f"No DICOM files found in directory: {dcm_directory}")
 
@@ -50,27 +63,24 @@ def dicom_to_nifti(dcm_directory):
             raise ValueError(f"Unexpected slice dimensions: {slice_image.ndim} for file: {dcm_file}")
         slices.append(slice_image_resized)
 
-    nii_name_dir = dcm_directory.replace('/', '_')
-    nii_name_dir = nii_name_dir.replace('\\', '_')
-
     if slices[0].ndim == 2:
         volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
     else:
         volume = slices[0]  
-
-    #volume = np.stack(slices, axis=-1) 
+    # Create a NIfTI image and save it
     nifti_image = nib.Nifti1Image(volume, np.eye(4))
-    nifti_file_path = os.path.join(dcm_directory, "converted.nii")
     nib.save(nifti_image, nifti_file_path)
 
     print(f"NIfTI file saved at: {nifti_file_path}")
     return nifti_file_path
 
+
 #D:/VascularData/data/ADNI
 #D:/Data/FLAIR_T2_ss/ADNI
+#/home/kbh/Downloads/ADNI
 
 if __name__ == "__main__":
-    path = "/home/kbh/Downloads/ADNI"
+    path = "D:/VascularData/data/ADNI"
     train_directories = find_dcm_directories(path)
     
     for dic in train_directories:

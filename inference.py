@@ -174,6 +174,7 @@ def main():
 
             # Predict anomaly for each slice
             anomaly_map, anomaly_score = model.predict_anomaly(volumes_slices)  # anomaly_map: (B*D, 1, H, W)
+            #print(anomaly_map.shape)
             anomaly_map = anomaly_map.view(B, D, 1, H, W)  # Reshape back to (B, D, 1, H, W)
 
             # For visualization, select the middle slice of each volume
