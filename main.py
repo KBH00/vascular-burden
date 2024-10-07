@@ -55,10 +55,10 @@ def main():
     print("\nFeature Autoencoder Decoder:")
     print(model.ae.dec)
 
-    # optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
+    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -80,7 +80,6 @@ def main():
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
-
 
             running_loss += loss.item()
 
