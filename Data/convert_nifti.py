@@ -54,7 +54,7 @@ def dicom_to_nifti(dcm_directory):
     nii_name_dir = nii_name_dir.replace('\\', '_')
 
     if slices[0].ndim == 2:
-        volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
+        volume = np.stack(slices, axis=-1)  # Shape: (num_slices, 128, 128)
     else:
         volume = slices[0]  
 
@@ -70,7 +70,7 @@ def dicom_to_nifti(dcm_directory):
 #D:/Data/FLAIR_T2_ss/ADNI
 
 if __name__ == "__main__":
-    path = "D:/VascularData/data/ADNI"
+    path = "/home/kbh/Downloads/ADNI"
     train_directories = find_dcm_directories(path)
     
     for dic in train_directories:
