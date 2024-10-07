@@ -128,7 +128,7 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
 
     return train_loader, validation_loader, test_loader
 
-if __name__ == "__main__":
-    path = "D:/Data/FLAIR_T2_ss/ADNI"
-    train_directories = find_nii_directories(path)
-    print(train_directories)
+# if __name__ == "__main__":
+#     path = "D:/Data/FLAIR_T2_ss/ADNI"
+#     train_directories = find_nii_directories(path)
+#     print(train_directories)
