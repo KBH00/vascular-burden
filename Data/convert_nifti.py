@@ -39,17 +39,14 @@ def dicom_to_nifti(dcm_directory):
     """
     nifti_file_path = os.path.join(dcm_directory, "converted.nii")
     
-    # Check if the NIfTI file already exists
     if os.path.exists(nifti_file_path):
         print(f"NIfTI file already exists at: {nifti_file_path}")
         return nifti_file_path
 
-    # Get sorted list of DICOM files in the directory
     dcm_files = sorted([f for f in os.listdir(dcm_directory) if f.endswith(".dcm")])
     if not dcm_files:
         raise ValueError(f"No DICOM files found in directory: {dcm_directory}")
 
-    # Read all DICOM slices and stack them to create a 3D volume
     slices = []
     for dcm_file in dcm_files:
         file_path = os.path.join(dcm_directory, dcm_file)
@@ -64,10 +61,10 @@ def dicom_to_nifti(dcm_directory):
         slices.append(slice_image_resized)
 
     if slices[0].ndim == 2:
-        volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
+        volume = np.stack(slices, axis=0) 
     else:
         volume = slices[0]  
-    # Create a NIfTI image and save it
+
     nifti_image = nib.Nifti1Image(volume, np.eye(4))
     nib.save(nifti_image, nifti_file_path)
 
@@ -79,9 +76,9 @@ def dicom_to_nifti(dcm_directory):
 #D:/Data/FLAIR_T2_ss/ADNI
 #/home/kbh/Downloads/ADNI
 
-if __name__ == "__main__":
-    path = "D:/VascularData/data/ADNI"
-    train_directories = find_dcm_directories(path)
+# if __name__ == "__main__":
+#     path = "D:/VascularData/data/ADNI"
+#     train_directories = find_dcm_directories(path)
     
-    for dic in train_directories:
-        dicom_to_nifti(dic)
+#     for dic in train_directories:
+#         dicom_to_nifti(dic)

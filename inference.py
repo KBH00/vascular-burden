@@ -20,6 +20,7 @@ sys.path.insert(0, parent_dir)
 from models.models import FeatureReconstructor
 from utils.pytorch_ssim import SSIMLoss
 from models.feature_extractor import Extractor
+from nilearn.masking import compute_brain_mask
 
 try:
     from tqdm import tqdm
