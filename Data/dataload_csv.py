@@ -1,15 +1,3 @@
-# fae/dataload.py
-
-import os
-import pydicom
-import numpy as np
-import pandas as pd
-import torch
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader, random_split
-from torchvision import transforms
-from skimage.transform import resize
-
 class Dicom3DDataset(Dataset):
     def __init__(self, directories, transform=None, labels=None):
         """
@@ -49,41 +37,22 @@ class Dicom3DDataset(Dataset):
         if len(slices) == 0:
             raise ValueError(f"No slices found in directory: {directory}")
         
-        # Handle 2D and 3D slices differently
         if slices[0].ndim == 2:
             volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
         else:
-            volume = slices[0]  # Assuming the first slice is already 3D
+            volume = slices[0]  
 
-        # Convert to torch tensor and add channel dimension
         volume = torch.tensor(volume, dtype=torch.float32).unsqueeze(0)  # Shape: (1, num_slices, 128, 128)
         
-        # Resize to (1, num_slices, 128, 128, 128) if 3D
         if volume.ndim == 4:
             volume = F.interpolate(volume.unsqueeze(0), size=(128, 128, 128), mode='trilinear', align_corners=False)
             volume = volume.squeeze(0)  # Shape: (1, num_slices, 128, 128, 128)
         
         if self.transform:
             volume = self.transform(volume)
-
         label = self.labels[idx] if self.labels is not None else -1
         return volume, label
 
-def find_dcm_directories(base_dir):
-    """
-    Recursively find all directories containing .dcm files.
-
-    Args:
-        base_dir (str): The base directory to search.
-
-    Returns:
-        list: List of directories containing at least one .dcm file.
-    """
-    dcm_directories = []
-    for root, dirs, files in os.walk(base_dir):
-        if any(file.endswith(".dcm") for file in files):
-            dcm_directories.append(root)
-    return dcm_directories
 
 def get_dataloaders_csv(csv_path, train_base_dir, batch_size=4, transform=None, validation_split=0.2, seed=42):
     """
@@ -165,53 +134,3 @@ def get_dataloaders_csv(csv_path, train_base_dir, batch_size=4, transform=None, 
         print(f"Batch volume shape: {volumes.shape}, Batch label shape: {labels.shape}")
         break  
     return train_loader, validation_loader, test_loader
-
-def get_dataloaders(csv_path, train_base_dir, batch_size=4, transform=None, validation_split=0.2, test_split=0.1, seed=42):
-    """
-    Prepare and return DataLoaders for training, validation, and testing.
-
-    Args:
-        csv_path (str): Path to the CSV file containing 'path' and 'PXPERIPH' columns.
-        train_base_dir (str): Base directory containing training DICOM directories.
-        batch_size (int, optional): Batch size for DataLoaders. Default is 4.
-        transform (callable, optional): Transformations to apply to the data. Default is Normalize((0.5,), (0.5,)).
-        validation_split (float, optional): Fraction of the dataset to use for validation. Default is 0.2.
-        test_split (float, optional): Fraction of the dataset to use for testing. Default is 0.1.
-        seed (int, optional): Random seed for reproducibility. Default is 42.
-
-    Returns:
-        tuple: (train_loader, validation_loader, test_loader)
-    """
-    if transform is None:
-        transform = transforms.Compose([
-            transforms.Normalize((0.5,), (0.5,)),  
-            # Add data augmentation here
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(30),  # Random rotation by up to 30 degrees
-            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
-            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),  # Color jitter
-            # Additional augmentations can be added here
-        ])
-    torch.manual_seed(seed)
-
-    print("Data load....")
-
-    train_directories = find_dcm_directories(train_base_dir)
-    train_dataset = Dicom3DDataset(train_directories, transform=transform)
-
-    total_size = len(train_dataset)
-    validation_size = int(total_size * validation_split)
-    test_size = int(total_size * test_split)
-    train_size = total_size - validation_size - test_size
-    print(validation_split, train_size, validation_size, test_size)
-
-    train_dataset, validation_dataset, test_dataset = random_split(train_dataset, [train_size, validation_size, test_size])
-
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    print("Data Loader ready...")
-    
-    return train_loader, validation_loader, test_loader
-

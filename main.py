@@ -9,11 +9,14 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 
+#D:/VascularData/data/ADNI
+#D:/Data/FLAIR_T2_ss/ADNI
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
-    parser.add_argument('--train_base_dir', type=str, default="D:/VascularData/data/ADNI", help='Base directory for training DICOM files')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for DataLoaders')
+    parser.add_argument('--train_base_dir', type=str, default="D:/Data/FLAIR_T2_ss/ADNI", help='Base directory for training DICOM files')
+    parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
+    parser.add_argument('--batch_size', type=int, default=4 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate for optimizer')
     parser.add_argument('--save_dir', type=str, default='./saved_models', help='Directory to save model checkpoints')
@@ -24,11 +27,11 @@ def main():
     args = parse_args()
 
     train_loader, validation_loader, test_loader = get_dataloaders(
-        csv_path=args.csv_path,
         train_base_dir=args.train_base_dir,
+        modality=args.modality,
         batch_size=args.batch_size,
         transform=None,  
-        validation_split=0.2,
+        validation_split=0.1,
         seed=42
     )
 
@@ -42,7 +45,7 @@ def main():
     config.extractor_cnn_layers = ['layer1', 'layer2']
     config.keep_feature_prop = 1.0
     config.random_extractor = False
-    config.loss_fn = 'mse'
+    config.loss_fn = 'ssim'
     # config.in_channels will be set by FeatureReconstructor based on Extractor
 
     model = FeatureReconstructor(config).to(args.device)

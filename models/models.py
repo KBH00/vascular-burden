@@ -258,7 +258,7 @@ if __name__ == '__main__':
     config.extractor_cnn_layers = ['layer1', 'layer2']
     config.keep_feature_prop = 1.0
     config.random_extractor = False  # Added to match the extractor initialization
-    config.loss_fn = 'mse'  # Added to specify the loss function
+    config.loss_fn = 'ssim'  # Added to specify the loss function
     config.in_channels = 1  # Added to specify input channels
     device = "cpu"
 
