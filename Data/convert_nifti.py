@@ -82,3 +82,35 @@ def dicom_to_nifti(dcm_directory):
     
 #     for dic in train_directories:
 #         dicom_to_nifti(dic)
+
+import os
+import pydicom
+import matplotlib.pyplot as plt
+
+def visualize_all_dicom_slices(dcm_directory):
+    """
+    Visualize all DICOM slices in the given directory, one by one in sorted order.
+
+    Args:
+        dcm_directory (str): Directory containing the DICOM files.
+    """
+    dcm_files = sorted([f for f in os.listdir(dcm_directory) if f.endswith(".dcm")])
+    
+    if not dcm_files:
+        raise ValueError(f"No DICOM files found in directory: {dcm_directory}")
+
+    for i, dcm_file in enumerate(dcm_files):
+        file_path = os.path.join(dcm_directory, dcm_file)
+        dicom_data = pydicom.dcmread(file_path)
+        slice_image = dicom_data.pixel_array
+
+        plt.figure(figsize=(6, 6))
+        plt.imshow(slice_image, cmap='gray')
+        plt.title(f'Slice {i + 1} - {dcm_file}')
+        plt.axis('off')
+        plt.show()
+
+visualize_all_dicom_slices(find_dcm_directories("D:/Data/FLAIR_T2_ss/ADNI")[0])
+
+
+

@@ -10,6 +10,8 @@ import torch.nn.functional as F
 
 import pydicom
 import numpy as np
+import nibabel as nib
+
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 
@@ -29,58 +31,44 @@ except ImportError:
 
 
 class InferenceDataset(Dataset):
-    def __init__(self, directories: List[str], transform=None):
+    def __init__(self, directories, transform=None, labels=None):
         """
-        Dataset for inference.
+        Custom dataset for loading 3D NIfTI images.
 
         Args:
-            directories (List[str]): List of directories containing .dcm files.
+            directories (list): List of directories containing .nii files.
             transform (callable, optional): Optional transform to be applied on a sample.
+            labels (list, optional): Optional labels for supervised learning.
         """
         self.directories = directories
         self.transform = transform
+        self.labels = labels
 
     def __len__(self):
         return len(self.directories)
 
     def __getitem__(self, idx):
         directory = self.directories[idx]
-        dcm_files = sorted([f for f in os.listdir(directory) if f.endswith(".dcm")])
-        
-        slices = []
-        for dcm_file in dcm_files:
-            file_path = os.path.join(directory, dcm_file)
-            dicom_data = pydicom.dcmread(file_path)
-            slice_image = dicom_data.pixel_array.astype(np.float32)  # Convert to float32
+        nii_file_path = os.path.join(directory, "converted.nii")
 
-            if slice_image.ndim == 2:  
-                slice_image_resized = resize(slice_image, (128, 128), anti_aliasing=True)
-            elif slice_image.ndim == 3: 
-                slice_image_resized = resize(slice_image, (128, 128, 128), anti_aliasing=True)
-            else:
-                raise ValueError(f"Unexpected slice dimensions: {slice_image.ndim} for file: {dcm_file}")
+        if not os.path.exists(nii_file_path):
+            raise ValueError(f"No NIfTI file found in directory: {directory}")
 
-            slices.append(slice_image_resized)
-        
-        if len(slices) == 0:
-            raise ValueError(f"No slices found in directory: {directory}")
-        
-        if slices[0].ndim == 2:
-            volume = np.stack(slices, axis=0)  # Shape: (num_slices, 128, 128)
-        else:
-            volume = slices[0]  
+        nifti_data = nib.load(nii_file_path)
+        volume = nifti_data.get_fdata().astype(np.float32)
 
-        volume = torch.tensor(volume, dtype=torch.float32).unsqueeze(0)  # Shape: (1, num_slices, 128, 128)
-        
-        # Resize to (1, num_slices, 128, 128, 128) if 3D
-        if volume.ndim == 4:
-            volume = F.interpolate(volume.unsqueeze(0), size=(128, 128, 128), mode='trilinear', align_corners=False)
-            volume = volume.squeeze(0)  # Shape: (1, num_slices, 128, 128, 128)
-        
+        mask = compute_brain_mask(nifti_data)
+        volume = volume * mask.get_fdata()
+
+        volume_resized = F.interpolate(torch.tensor(volume).unsqueeze(0).unsqueeze(0), size=(128, 128, 128), mode='trilinear', align_corners=False)
+        volume_resized = volume_resized.squeeze(0)
+        volume_resized = volume_resized.float()  
+
         if self.transform:
-            volume = self.transform(volume)
-            
-        return volume, directory  
+            volume_resized = self.transform(volume_resized)
+
+        label = self.labels[idx] if self.labels is not None else -1
+        return volume_resized, directory
 
 
 def find_dcm_directories(base_dir: str) -> List[str]:
@@ -99,6 +87,24 @@ def find_dcm_directories(base_dir: str) -> List[str]:
             dcm_directories.append(root)
     return dcm_directories
 
+def find_nii_directories(base_dir, modality="FLAIR"):
+    """
+    Recursively find all directories containing .nii files.
+
+    Args:
+        base_dir (str): The base directory to search.
+
+    Returns:
+        list: List of directories containing at least one .nii file.
+    """
+    nii_directories = []
+    for root, dirs, files in os.walk(base_dir):
+        if any(file == "converted.nii" for file in files):
+            if root.count(modality) == 2:
+                nii_directories.append(root)
+            #else statement needed <<<!!!!
+
+    return nii_directories
 
 def visualize_anomaly_overlay(original_slice: torch.Tensor, anomaly_map: torch.Tensor, save_path: str = None):
     """
@@ -131,7 +137,7 @@ def visualize_anomaly_overlay(original_slice: torch.Tensor, anomaly_map: torch.T
 
 def main():
     parser = argparse.ArgumentParser(description='Inference with Feature Autoencoder')
-    parser.add_argument('--checkpoint', type=str, default="./saved_models/model_epoch_5.pth", help='Path to the model checkpoint file')
+    parser.add_argument('--checkpoint', type=str, default="./saved_models/model_epoch_35.pth", help='Path to the model checkpoint file')
     parser.add_argument('--input_dir', type=str, default="D:/Data/FLAIR_T2_ss/ADNI/", help='Directory containing DICOM directories for inference')
     parser.add_argument('--output_dir', type=str, default='./anomaly_maps', help='Directory to save anomaly map visualizations')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size for inference')
@@ -157,12 +163,13 @@ def main():
     model.load(args.checkpoint)
     model.eval()
 
-    dcm_directories = find_dcm_directories(args.input_dir)
-    if len(dcm_directories) == 0:
+    nii_directories = find_nii_directories(args.input_dir)
+    print(nii_directories)
+    if len(nii_directories) == 0:
         print(f"No DICOM directories found in {args.input_dir}")
         return
 
-    inference_dataset = InferenceDataset(dcm_directories)
+    inference_dataset = InferenceDataset(nii_directories)
     inference_loader = DataLoader(inference_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
     with torch.no_grad():
