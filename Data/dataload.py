@@ -2,12 +2,12 @@ import os
 import nibabel as nib
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader, random_split
+import torchio as tio
+from torch.utils.data import random_split
 from torchio import RandomAffine, RandomElasticDeformation, RandomNoise, RandomMotion, RandomBiasField, RandomFlip, RandomBlur, RescaleIntensity, RandomGamma, Compose
-from torchvision import transforms
 
-class Nifti3DDataset(Dataset):
+
+class Nifti3DDataset:
     def __init__(self, directories, transform=None, labels=None, num_slices=80, smaller_ratio=30):
         """
         Custom dataset for loading 3D NIfTI images with a center-based 30-50 slice cut.
@@ -46,25 +46,23 @@ class Nifti3DDataset(Dataset):
 
         volume_cropped = volume[:, :, start_slice:end_slice]
 
-        volume_resized = F.interpolate(torch.tensor(volume_cropped).unsqueeze(0).unsqueeze(0), size=(self.num_slices, 128, 128), mode='trilinear', align_corners=False)
-        volume_resized = volume_resized.squeeze(0).float()
-
         if self.transform:
-            volume_resized = self.transform(volume_resized)
+            volume_cropped = self.transform(volume_cropped)
 
         label = self.labels[idx] if self.labels is not None else -1
-        return volume_resized, label
+
+        # Wrap the data into a TorchIO Subject
+        subject = tio.Subject(
+            image=tio.Image(tensor=torch.tensor(volume_cropped).unsqueeze(0), type=tio.INTENSITY),
+            label=label
+        )
+
+        return subject
 
 
 def find_nii_directories(base_dir, modality="FLAIR"):
     """
     Recursively find all directories containing .nii.gz files with specific criteria.
-
-    Args:
-        base_dir (str): The base directory to search.
-
-    Returns:
-        list: List of directories containing at least one .nii.gz file with the modality.
     """
     nii_directories = []
     for root, dirs, files in os.walk(base_dir):
@@ -78,27 +76,8 @@ def find_nii_directories(base_dir, modality="FLAIR"):
 def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, validation_split=0.1, test_split=0.1, seed=42):
     """
     Prepare and return DataLoaders for training, validation, and testing.
-
-    Args:
-        train_base_dir (str): Base directory containing training NIfTI directories.
-        batch_size (int, optional): Batch size for DataLoaders. Default is 4.
-        transform (callable, optional): Transformations to apply to the data.
-        validation_split (float, optional): Fraction of the dataset to use for validation.
-        test_split (float, optional): Fraction of the dataset to use for testing.
-        seed (int, optional): Random seed for reproducibility.
-
-    Returns:
-        tuple: (train_loader, validation_loader, test_loader)
     """
 
-    #original
-        #     transform = transforms.Compose([
-        #     transforms.Normalize((0.5,), (0.5,)),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.RandomVerticalFlip(),
-        #     transforms.RandomRotation(30),
-        #     transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-        # ])
     if transform is None:
         transform = Compose([
             RescaleIntensity(out_min_max=(0, 1)),  # Normalize intensity
@@ -113,8 +92,6 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
         ])
     torch.manual_seed(seed)
 
-    print("Data load....")
-
     train_directories = find_nii_directories(base_dir=train_base_dir, modality=modality)
     train_dataset = Nifti3DDataset(train_directories, transform=transform)
 
@@ -125,10 +102,10 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
 
     train_dataset, validation_dataset, test_dataset = random_split(train_dataset, [train_size, validation_size, test_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    print("Data Loader ready...")
+    # Use SubjectsLoader from TorchIO instead of PyTorch DataLoader
+    train_loader = tio.SubjectsDataset(train_dataset)
+    validation_loader = tio.SubjectsDataset(validation_dataset)
+    test_loader = tio.SubjectsDataset(test_dataset)
 
     return train_loader, validation_loader, test_loader
 
