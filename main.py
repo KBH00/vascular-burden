@@ -9,9 +9,9 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 
-#D:/VascularData/data/ADNI
+#D:/VascularData/data/nii
 #D:/Data/FLAIR_T2_ss/ADNI
-#/home/kbh/Downloads/ADNI
+#/home/kbh/Downloads/nii
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
