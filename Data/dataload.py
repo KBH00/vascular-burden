@@ -91,11 +91,19 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
     """
     if transform is None:
         transform = transforms.Compose([
-            transforms.Normalize((0.5,), (0.5,)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(30),
             transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+            transforms.RescaleIntensity(out_min_max=(0, 1)),  # Normalize intensity
+            transforms.RandomAffine(scales=(0.9, 1.1), degrees=15),  # Random scaling and rotation
+            transforms.RandomElasticDeformation(num_control_points=5, max_displacement=7.5),  # Non-linear elastic deformation
+            transforms.RandomNoise(mean=0.0, std=0.05),  # Add Gaussian noise
+            transforms.RandomMotion(degrees=10, translation=10),  # Simulate motion artifacts
+            transforms.RandomBiasField(coefficients=0.5),  # Simulate intensity inhomogeneity
+            transforms.RandomFlip(axes=(0, 1, 2)),  # Random flipping in 3D axes
+            transforms.RandomBlur(std=(0, 2)),  # Random blurring
+            transforms.RandomGamma(log_gamma=(0.5, 1.5)),  # Adjust gamma to simulate contrast changes
         ])
     torch.manual_seed(seed)
 
