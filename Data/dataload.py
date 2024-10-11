@@ -89,6 +89,15 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
     Returns:
         tuple: (train_loader, validation_loader, test_loader)
     """
+
+    #original
+        #     transform = transforms.Compose([
+        #     transforms.Normalize((0.5,), (0.5,)),
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.RandomVerticalFlip(),
+        #     transforms.RandomRotation(30),
+        #     transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        # ])
     if transform is None:
         transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
