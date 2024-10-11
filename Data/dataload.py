@@ -104,7 +104,6 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(30),
             transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-            transforms.RandomAffine(scales=(0.9, 1.1), degrees=15),  # Random scaling and rotation
             transforms.RandomElasticDeformation(num_control_points=5, max_displacement=7.5),  # Non-linear elastic deformation
             transforms.RandomNoise(mean=0.0, std=0.05),  # Add Gaussian noise
             transforms.RandomMotion(degrees=10, translation=10),  # Simulate motion artifacts
