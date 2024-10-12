@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
     parser.add_argument('--train_base_dir', type=str, default="D:/VascularData/data/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
-    parser.add_argument('--batch_size', type=int, default=8 , help='Batch size for DataLoaders')
+    parser.add_argument('--batch_size', type=int, default=4 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate for optimizer')
     parser.add_argument('--save_dir', type=str, default='./saved_models', help='Directory to save model checkpoints')
@@ -69,8 +69,6 @@ def main():
             volumes = volumes.to(args.device)  # Shape: (B, 1, D, H, W)
             
             B, C, D, H, W = volumes.shape
-            print(B,C,D,H,W)
-
             volumes_slices = volumes.view(B * D, C, H, W)  # Shape: (B*D, 1, H, W)
 
             # Forward pass
