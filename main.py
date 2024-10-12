@@ -9,9 +9,9 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 
-#D:/VascularData/data/ADNI
+#D:/VascularData/data/nii
 #D:/Data/FLAIR_T2_ss/ADNI
-#/home/kbh/Downloads/ADNI
+#/home/kbh/Downloads/nii
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
@@ -110,10 +110,14 @@ def main():
 
         scheduler.step()
 
-        if epoch%5==0:
+        if epoch%2==0:
             os.makedirs(args.save_dir, exist_ok=True)
-            save_path = os.path.join(args.save_dir, f"model_epoch_{epoch}.pth")
-            model.save(config, f"model_epoch_{epoch}.pth", directory=args.save_dir)
+            save_path = os.path.join(
+                args.save_dir, 
+                f"model_epoch_{epoch}_batchsize_{args.batch_size}_lr_{args.lr}.pth"
+            )
+            model.save(config, f"epoch_{epoch}_batchsize_{args.batch_size}_lr_{args.lr}.pth", directory=args.save_dir)
+            
             print(f"Model saved to {save_path}")
 
     model.eval()
