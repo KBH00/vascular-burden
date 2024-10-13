@@ -79,7 +79,8 @@ def main():
 
             volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
             #visualize_volume(volumes, num_slices=5)
-            print(volumes.shape)
+            if batch_idx == 1:
+                print(volumes.shape)
 
             # B, H, W, D = volumes.shape
             # volumes_slices = volumes.view(B*D, 1, H, W)  # Shape: (B*D, 1, H, W)
@@ -103,12 +104,12 @@ def main():
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for volumes, _ in validation_loader:
+            for volumes in validation_loader:
                 volumes = volumes.to(args.device)
-                B, C, D, H, W = volumes.shape
-                volumes_slices = volumes.view(B * D, C, H, W)
+                #B, C, D, H, W = volumes.shape
+                #volumes_slices = volumes.view(B * D, C, H, W)
 
-                loss_dict = model.loss(volumes_slices)
+                loss_dict = model.loss(volumes)
                 loss = loss_dict['rec_loss']
                 val_loss += loss.item()
 
@@ -130,12 +131,12 @@ def main():
     model.eval()
     test_loss = 0.0
     with torch.no_grad():
-        for volumes, _ in test_loader:
+        for volumes in test_loader:
             volumes = volumes.to(args.device)
-            B, C, D, H, W = volumes.shape
-            volumes_slices = volumes.view(B * D, C, H, W)
+            # B, C, D, H, W = volumes.shape
+            # volumes_slices = volumes.view(B * D, C, H, W)
 
-            loss_dict = model.loss(volumes_slices)
+            loss_dict = model.loss(volumes)
             loss = loss_dict['rec_loss']
             test_loss += loss.item()
 
