@@ -10,12 +10,14 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 
+#/home/kbh/Downloads/nii
+#D:/VascularData/data/nii
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
     parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
-    parser.add_argument('--batch_size', type=int, default=4 , help='Batch size for DataLoaders')
+    parser.add_argument('--batch_size', type=int, default=1 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
 
     parser.add_argument('--image_size', type=int,
@@ -72,7 +74,7 @@ def main():
     for epoch in range(1, args.epochs + 1):
         model.train()
         running_loss = 0.0
-        for volumes in enumerate(train_loader):
+        for volumes, _ in enumerate(train_loader):
             volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
             #visualize_volume(volumes, num_slices=5)
             print(volumes.shape)
