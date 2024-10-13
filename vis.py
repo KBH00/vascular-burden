@@ -41,6 +41,7 @@ def visualize_nifti(nifti_file, num_slices=80, smaller_ratio=30, threshold=130):
     """
     img = nib.load(nifti_file)
     data = img.get_fdata()
+    data = resize(data, [80, 128, 128])
     print(data.shape)
     total_slices = data.shape[2]
     print(f"Total slices: {total_slices}")
@@ -78,6 +79,7 @@ def visualize_nifti(nifti_file, num_slices=80, smaller_ratio=30, threshold=130):
     plt.tight_layout()
     plt.savefig("centered_slices_custom_ratio.png")
     plt.show()
+from skimage.transform import resize
 
 if __name__ == "__main__":
     nifti_file2 = "D:/VascularData/data/nii/002_S_0413/Sagittal_3D_FLAIR/2017-06-21_13_23_38.0/I863060/I863060_Sagittal_3D_FLAIR_20170621132338_3_cleaned.nii.gz"

@@ -17,13 +17,13 @@ def parse_args():
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
     parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
-    parser.add_argument('--batch_size', type=int, default=16 , help='Batch size for DataLoaders')
+    parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
 
     parser.add_argument('--image_size', type=int,
                          default=128, help='Image size')
     parser.add_argument('--slice_range', type=int,
-                            nargs='+', default=(55, 135), help='Slice range')
+                            nargs='+', default=(65, 145), help='Slice range')
     parser.add_argument('--normalize', type=bool,
                             default=False, help='Normalize images between 0 and 1')
     parser.add_argument('--equalize_histogram', type=bool,
@@ -33,6 +33,22 @@ def parse_args():
     parser.add_argument('--save_dir', type=str, default='./saved_models', help='Directory to save model checkpoints')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='Device to use for training')
     return parser.parse_args()
+
+import matplotlib.pyplot as plt
+
+def visualize_volume(volumes, num_slices=5):
+    B, _, H, W = volumes.shape  # Adjust to match the shape [batch size, 1, 128, 128]
+    
+    # Take the first volume from the batch (index 0)
+    volume = volumes[0, 0].cpu().numpy()  # Shape: [128, 128]
+    
+    # Choose the step to evenly sample slices from the height (H)
+    slice_step = max(1, H // num_slices)
+    
+    plt.imshow(volume, cmap="gray")  # No need for volume[slice_idx] since it's already 2D
+    plt.axis('off')
+    plt.show()
+
 
 def main():
     args = parse_args()
@@ -76,11 +92,9 @@ def main():
         running_loss = 0.0
         for batch_idx, volumes in enumerate(train_loader):
             optimizer.zero_grad()
-
             volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
             #visualize_volume(volumes, num_slices=5)
-            if batch_idx == 1:
-                print(volumes.shape)
+            
 
             # B, H, W, D = volumes.shape
             # volumes_slices = volumes.view(B*D, 1, H, W)  # Shape: (B*D, 1, H, W)
