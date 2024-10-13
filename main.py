@@ -92,7 +92,8 @@ def main():
         running_loss = 0.0
         for batch_idx, volumes in enumerate(train_loader):
             optimizer.zero_grad()
-            volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
+            volumes = volumes.to(args.device)  # Shape: (B, 1, H, W)
+            print(volumes.shape)
             #visualize_volume(volumes, num_slices=5)
             
 

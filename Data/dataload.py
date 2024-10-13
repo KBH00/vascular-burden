@@ -124,6 +124,7 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     print("Data load....")
 
     train_directories = find_nii_directories(base_dir=train_base_dir, modality=modality)
+    train_directories = train_directories[:4]
     train_imgs = np.concatenate(load_images(train_directories, config))
     #train_dataset = Nifti3DDataset(train_directories, transform=transform, config=config)
     train_dataset =TrainDataset(train_imgs)

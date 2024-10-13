@@ -26,7 +26,7 @@ def load_nii(path: str, size: int = None, primary_axis: int = 0,
     data = nib.load(path, keep_file_open=False)
     volume = data.get_fdata(caching='unchanged')  # [w, h, slices]
     affine = data.affine
-    print("Frist",volume.shape)
+    #print("Frist",volume.shape)
     # Squeeze optional 4th dimension
     if volume.ndim == 4:
         volume = volume.squeeze(-1)
@@ -38,7 +38,7 @@ def load_nii(path: str, size: int = None, primary_axis: int = 0,
     # Convert
     volume = volume.astype(np.dtype(dtype))
     volume = np.moveaxis(volume, primary_axis, 0)
-    print("second", volume.shape)
+    #print("second", volume.shape)
     return volume, affine
 
 import matplotlib.pyplot as plt
@@ -100,8 +100,8 @@ def load_nii_nn(path: str, size: int = None,
 
     #vol = rectangularize(vol)
 
-    # if size is not None:
-    #     vol = resize(vol, [vol.shape[0], size, size])
+    if size is not None:
+        vol = resize(vol, [vol.shape[0], 256, 256])
 
     if normalize:
         vol = normalize_percentile(vol, 98)
@@ -111,7 +111,7 @@ def load_nii_nn(path: str, size: int = None,
 
     # Expand channel dimension
     vol = vol[:, None]
-    print("Last", vol.shape)
+    #print("Last", vol.shape)
     return vol
 
 
@@ -188,9 +188,9 @@ def rectangularize(img: np.ndarray) -> np.ndarray:
 
     if w < h:
         # Center crop height to width
-        img = img[:, :, (h - w) // 4:(h + w) // 4]
+        img = img[:, :, (h - w) // 2:(h + w) // 2]
     elif h < w:
         # Center crop width to height
-        img = img[:, (w - h) // 4:(w + h) // 4, :]
+        img = img[:, (w - h) // 2:(w + h) // 2, :]
 
     return img
