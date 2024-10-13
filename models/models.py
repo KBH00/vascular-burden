@@ -222,10 +222,8 @@ class FeatureReconstructor(BaseModel):
 
     def predict_anomaly(self, x: Tensor):
         """Returns per image anomaly maps and anomaly scores"""
-        # Extract features
         feats, rec = self(x)
 
-        # Compute anomaly map
         anomaly_map = self.loss_fn(rec, feats).mean(1, keepdim=True)
         anomaly_map = F.interpolate(anomaly_map, x.shape[-2:], mode='bilinear',
                                     align_corners=True)
@@ -257,9 +255,9 @@ if __name__ == '__main__':
     config.dropout = 0.2
     config.extractor_cnn_layers = ['layer1', 'layer2']
     config.keep_feature_prop = 1.0
-    config.random_extractor = False  # Added to match the extractor initialization
-    config.loss_fn = 'ssim'  # Added to specify the loss function
-    config.in_channels = 1  # Added to specify input channels
+    config.random_extractor = False  #
+    config.loss_fn = 'ssim'  
+    config.in_channels = 1  
     device = "cpu"
 
     # Model
@@ -270,8 +268,7 @@ if __name__ == '__main__':
     print(fae.ae.dec)
 
     # Data
-    x = torch.randn(32, config.in_channels, config.image_size, config.image_size).to(device)
-
+    x = torch.randn(32, 1, *[config.image_size] * 2).to(device)
     # Forward
     feats, rec = fae(x)
     print(f"Features shape: {feats.shape}, Reconstructed shape: {rec.shape}")
@@ -279,11 +276,8 @@ if __name__ == '__main__':
     anomaly_map, anomaly_score = fae.predict_anomaly(x)
     print(f"Anomaly map shape: {anomaly_map.shape}, Anomaly scores: {anomaly_score}")
 
-    # Example of saving and loading the model
-    # Save the model
     fae.save(config, "feature_reconstructor.pth", directory="./saved_models")
 
-    # Load the model
     fae_loaded = FeatureReconstructor(config).to(device)
     fae_loaded.load("./saved_models/feature_reconstructor.pth")
     print("Model loaded successfully.")
