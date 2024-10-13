@@ -74,7 +74,7 @@ def main():
     for epoch in range(1, args.epochs + 1):
         model.train()
         running_loss = 0.0
-        for volumes, _ in enumerate(train_loader):
+        for batch_idx, volumes in enumerate(train_loader):
             volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
             #visualize_volume(volumes, num_slices=5)
             print(volumes.shape)
