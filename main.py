@@ -93,7 +93,7 @@ def main():
         for batch_idx, volumes in enumerate(train_loader):
             optimizer.zero_grad()
             volumes = volumes.to(args.device)  # Shape: (B, 1, H, W)
-            print(volumes.shape)
+            #print(volumes.shape)
             #visualize_volume(volumes, num_slices=5)
             
 
