@@ -15,7 +15,7 @@ import os
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
-    parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
+    parser.add_argument('--train_base_dir', type=str, default="D:/VascularData/data/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
     parser.add_argument('--batch_size', type=int, default=1 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
@@ -75,18 +75,19 @@ def main():
         model.train()
         running_loss = 0.0
         for batch_idx, volumes in enumerate(train_loader):
+            optimizer.zero_grad()
+
             volumes = volumes.to(args.device)  # Shape: (B, D, H, W)
             #visualize_volume(volumes, num_slices=5)
             print(volumes.shape)
-            B, H, W, D = volumes.shape
 
-            volumes_slices = volumes.view(B*D, 1, H, W)  # Shape: (B*D, 1, H, W)
-            print(volumes_slices.shape)
+            # B, H, W, D = volumes.shape
+            # volumes_slices = volumes.view(B*D, 1, H, W)  # Shape: (B*D, 1, H, W)
+            # print(volumes_slices.shape)
             # Forward pass
-            loss_dict = model.loss(volumes_slices)
+            loss_dict = model.loss(volumes)
             loss = loss_dict['rec_loss']
 
-            optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
