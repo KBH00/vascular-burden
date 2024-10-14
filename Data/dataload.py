@@ -61,6 +61,58 @@ class TrainDataset(Dataset):
     def __getitem__(self, idx):
         return self.imgs[idx]
 
+class AugmentedTrainDataset(Dataset):
+    """
+    Training dataset with augmented images (horizontal and vertical flip).
+    """
+
+    def __init__(self, imgs: np.ndarray, transform=None):
+        """
+        Args:
+            imgs (np.ndarray): Training slices (NumPy array).
+            transform (callable, optional): Transform to be applied on a sample.
+        """
+        self.original_imgs = imgs
+        self.transform = transform
+
+        # Ensure the input is in the shape [320, 1, 256, 256]
+        assert len(self.original_imgs.shape) == 4, "Input images should be 4D: [N, 1, H, W]"
+
+        # Apply the transformations (normalization and flips)
+        self.normalized_imgs = np.stack([self._apply_transform(img) for img in self.original_imgs])
+        self.horizontal_flip_imgs = np.stack([self._apply_transform(img, horizontal=True) for img in self.original_imgs])
+        self.vertical_flip_imgs = np.stack([self._apply_transform(img, vertical=True) for img in self.original_imgs])
+
+        # Concatenate original, horizontal flip, and vertical flip images
+        self.augmented_imgs = np.concatenate([self.normalized_imgs, self.horizontal_flip_imgs, self.vertical_flip_imgs], axis=0)
+
+        print(f"Augmented dataset shape: {self.augmented_imgs.shape}")
+
+    def _apply_transform(self, img, horizontal=False, vertical=False):
+        """Helper function to apply normalization and optional flips."""
+        # The input img is already a NumPy array, so no need to convert to tensor initially
+        if horizontal:
+            img = np.flip(img, axis=2)  # Flip along width (axis=2)
+
+        if vertical:
+            img = np.flip(img, axis=1)  # Flip along height (axis=1)
+
+        # Convert NumPy to Tensor (if needed for normalization)
+        img_tensor = torch.from_numpy(img).float()
+
+        # Apply normalization if the transform is defined
+        if self.transform:
+            img_tensor = self.transform(img_tensor)
+
+        # Convert the tensor back to NumPy array for concatenation
+        return img_tensor.numpy()
+
+    def __len__(self):
+        return len(self.augmented_imgs)
+
+    def __getitem__(self, idx):
+        return self.augmented_imgs[idx]
+
 def find_nii_directories(base_dir, modality="FLAIR"):
     """
     Recursively find all directories containing .nii.gz files with specific criteria.
@@ -115,9 +167,8 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     """
     if transform is None:
         transform = transforms.Compose([
+
             transforms.Normalize((0.5,), (0.5,)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
         ])
     torch.manual_seed(seed)
 
@@ -127,6 +178,7 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     if inf is True:
         train_directories = train_directories[:4]
         train_imgs = np.concatenate(load_images(train_directories, config))
+        #train_dataset = AugmentedTrainDataset(train_imgs, transform=transform)
         validation_dataset = TrainDataset(train_imgs)
         validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
         return None, validation_loader, None
