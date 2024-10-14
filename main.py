@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
     parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
-    parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
+    parser.add_argument('--epochs', type=int, default=500, help='Number of training epochs')
 
     parser.add_argument('--image_size', type=int,
                          default=128, help='Image size')
@@ -110,12 +110,12 @@ def main():
                 volumes = volumes.to(args.device)
                 #B, C, D, H, W = volumes.shape
                 #volumes_slices = volumes.view(B * D, C, H, W)
-                anomaly_map, anomaly_score = model.predict_anomaly(volumes)
+                #anomaly_map, anomaly_score = model.predict_anomaly(volumes)
 
                 loss_dict = model.loss(volumes)
                 loss = loss_dict['rec_loss']
                 val_loss += loss.item()
-                plot_anomaly_map_with_original(volumes, anomaly_map, slice_idx=0)
+                #plot_anomaly_map_with_original(volumes, anomaly_map, slice_idx=0)
 
 
         val_loss /= len(validation_loader)
