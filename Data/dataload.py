@@ -1,52 +1,41 @@
 import os
-import nibabel as nib
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms
+from functools import partial
+from Data.data_utils import load_files_to_ram, load_nii_nn
+
 
 class Nifti3DDataset(Dataset):
-    def __init__(self, directories, transform=None, labels=None, num_slices=80, smaller_ratio=30):
+    def __init__(self, directories, transform=None, labels=None, config=None):
         """
-        Custom dataset for loading 3D NIfTI images with a center-based 30-50 slice cut.
+        Custom dataset for loading 3D NIfTI images using `load_nii_nn`.
 
         Args:
             directories (list): List of directories containing .nii files.
             transform (callable, optional): Optional transform to be applied on a sample.
             labels (list, optional): Optional labels for supervised learning.
-            num_slices (int, optional): Total number of slices to extract (default is 80).
-            smaller_ratio (int, optional): Number of slices before the center (default is 30).
+            config (Namespace, optional): Configuration containing loading parameters.
         """
         self.directories = directories
         self.transform = transform
         self.labels = labels
-        self.num_slices = num_slices
-        self.smaller_ratio = smaller_ratio
-        self.larger_ratio = num_slices - smaller_ratio
+        self.config = config
+
+        load_fn = partial(load_nii_nn,
+                          slice_range=config.slice_range,
+                          size=config.image_size,
+                          normalize=config.normalize,
+                          equalize_histogram=config.equalize_histogram)
+
+        self.volumes = load_files_to_ram(self.directories, load_fn)
 
     def __len__(self):
-        return len(self.directories)
+        return len(self.volumes)
 
     def __getitem__(self, idx):
-        nii_file_path = self.directories[idx]
-
-        if not os.path.exists(nii_file_path):
-            raise ValueError(f"No NIfTI file found in directory: {nii_file_path}")
-
-        nifti_data = nib.load(nii_file_path)
-        volume = nifti_data.get_fdata().astype(np.float32)
-
-        total_slices = volume.shape[2]
-        center_slice = total_slices // 2
-
-        start_slice = max(center_slice - self.smaller_ratio, 0)
-        end_slice = min(center_slice + self.larger_ratio, total_slices)
-
-        volume_cropped = volume[:, :, start_slice:end_slice]
-
-        volume_resized = F.interpolate(torch.tensor(volume_cropped).unsqueeze(0).unsqueeze(0), size=(self.num_slices, 128, 128), mode='trilinear', align_corners=False)
-        volume_resized = volume_resized.squeeze(0).float()
+        volume_resized = self.volumes[idx]
 
         if self.transform:
             volume_resized = self.transform(volume_resized)
@@ -54,6 +43,23 @@ class Nifti3DDataset(Dataset):
         label = self.labels[idx] if self.labels is not None else -1
         return volume_resized, label
 
+class TrainDataset(Dataset):
+    """
+    Training dataset. No anomalies, no segmentation maps.
+    """
+
+    def __init__(self, imgs: np.ndarray):
+        """
+        Args:
+            imgs (np.ndarray): Training slices
+        """
+        self.imgs = imgs
+
+    def __len__(self):
+        return len(self.imgs)
+
+    def __getitem__(self, idx):
+        return self.imgs[idx]
 
 def find_nii_directories(base_dir, modality="FLAIR"):
     """
@@ -73,8 +79,25 @@ def find_nii_directories(base_dir, modality="FLAIR"):
                 break
     return nii_directories
 
+from typing import List, Tuple, Sequence
 
-def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, validation_split=0.1, test_split=0.1, seed=42):
+def load_images(files: List[str], config) -> np.ndarray:
+    """Load images from a list of files.
+    Args:
+        files (List[str]): List of files
+        config (Namespace): Configuration
+    Returns:
+        images (np.ndarray): Numpy array of images
+    """
+    load_fn = partial(load_nii_nn,
+                      slice_range=config.slice_range,
+                      size=config.image_size,
+                      normalize=config.normalize,
+                      equalize_histogram=config.equalize_histogram)
+    return load_files_to_ram(files, load_fn)
+
+def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
+                    validation_split=0.1, test_split=0.1, seed=42, config=None):
     """
     Prepare and return DataLoaders for training, validation, and testing.
 
@@ -85,33 +108,26 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
         validation_split (float, optional): Fraction of the dataset to use for validation.
         test_split (float, optional): Fraction of the dataset to use for testing.
         seed (int, optional): Random seed for reproducibility.
+        config (Namespace, optional): Configuration for loading parameters.
 
     Returns:
         tuple: (train_loader, validation_loader, test_loader)
     """
-
-    #original
-        #     transform = transforms.Compose([
-        #     transforms.Normalize((0.5,), (0.5,)),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.RandomVerticalFlip(),
-        #     transforms.RandomRotation(30),
-        #     transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
-        # ])
     if transform is None:
         transform = transforms.Compose([
             transforms.Normalize((0.5,), (0.5,)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(30),
-            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
         ])
     torch.manual_seed(seed)
 
     print("Data load....")
 
     train_directories = find_nii_directories(base_dir=train_base_dir, modality=modality)
-    train_dataset = Nifti3DDataset(train_directories, transform=transform)
+    #train_directories = train_directories[:4]
+    train_imgs = np.concatenate(load_images(train_directories, config))
+    #train_dataset = Nifti3DDataset(train_directories, transform=transform, config=config)
+    train_dataset =TrainDataset(train_imgs)
 
     total_size = len(train_dataset)
     validation_size = int(total_size * validation_split)
@@ -120,15 +136,13 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None, vali
 
     train_dataset, validation_dataset, test_dataset = random_split(train_dataset, [train_size, validation_size, test_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    #train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
-    print("Data Loader ready...")
+    
+    print(f"Len train_loader: {len(train_loader)}")
+    print(f"Len val_loader: {len(validation_loader)}")
+    print(f"Len test_loader: {len(test_loader)}")
 
     return train_loader, validation_loader, test_loader
-
-
-# Example usage
-# if __name__ == "__main__":
-#     path = "D:/VascularData/data/nii"
-#     get_dataloaders(path, "FLAIR")

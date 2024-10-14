@@ -30,80 +30,72 @@ except ImportError:
     tqdm = lambda x: x  # If tqdm is not installed, use a dummy loop
 
 
-class InferenceDataset(Dataset):
-    def __init__(self, directories, transform=None, labels=None):
+class Nifti3DDataset(Dataset):
+    def __init__(self, directories, transform=None, labels=None, num_slices=80, smaller_ratio=30):
         """
-        Custom dataset for loading 3D NIfTI images.
+        Custom dataset for loading 3D NIfTI images with a center-based 30-50 slice cut.
 
         Args:
             directories (list): List of directories containing .nii files.
             transform (callable, optional): Optional transform to be applied on a sample.
             labels (list, optional): Optional labels for supervised learning.
+            num_slices (int, optional): Total number of slices to extract (default is 80).
+            smaller_ratio (int, optional): Number of slices before the center (default is 30).
         """
         self.directories = directories
         self.transform = transform
         self.labels = labels
+        self.num_slices = num_slices
+        self.smaller_ratio = smaller_ratio
+        self.larger_ratio = num_slices - smaller_ratio
 
     def __len__(self):
         return len(self.directories)
 
     def __getitem__(self, idx):
-        directory = self.directories[idx]
-        nii_file_path = os.path.join(directory, "converted.nii")
+        nii_file_path = self.directories[idx]
 
         if not os.path.exists(nii_file_path):
-            raise ValueError(f"No NIfTI file found in directory: {directory}")
+            raise ValueError(f"No NIfTI file found in directory: {nii_file_path}")
 
         nifti_data = nib.load(nii_file_path)
         volume = nifti_data.get_fdata().astype(np.float32)
 
-        mask = compute_brain_mask(nifti_data)
-        volume = volume * mask.get_fdata()
+        total_slices = volume.shape[2]
+        center_slice = total_slices // 2
 
-        volume_resized = F.interpolate(torch.tensor(volume).unsqueeze(0).unsqueeze(0), size=(128, 128, 128), mode='trilinear', align_corners=False)
-        volume_resized = volume_resized.squeeze(0)
-        volume_resized = volume_resized.float()  
+        start_slice = max(center_slice - self.smaller_ratio, 0)
+        end_slice = min(center_slice + self.larger_ratio, total_slices)
+
+        volume_cropped = volume[:, :, start_slice:end_slice]
+
+        volume_resized = F.interpolate(torch.tensor(volume_cropped).unsqueeze(0).unsqueeze(0), size=(self.num_slices, 128, 128), mode='trilinear', align_corners=False)
+        volume_resized = volume_resized.squeeze(0).float()
 
         if self.transform:
             volume_resized = self.transform(volume_resized)
 
         label = self.labels[idx] if self.labels is not None else -1
-        return volume_resized, directory
+        return volume_resized, nii_file_path
 
-
-def find_dcm_directories(base_dir: str) -> List[str]:
-    """
-    Recursively find all directories containing .dcm files.
-
-    Args:
-        base_dir (str): The base directory to search.
-
-    Returns:
-        List[str]: List of directories containing at least one .dcm file.
-    """
-    dcm_directories = []
-    for root, dirs, files in os.walk(base_dir):
-        if any(file.endswith(".dcm") for file in files):
-            dcm_directories.append(root)
-    return dcm_directories
 
 def find_nii_directories(base_dir, modality="FLAIR"):
     """
-    Recursively find all directories containing .nii files.
+    Recursively find all directories containing .nii.gz files with specific criteria.
 
     Args:
         base_dir (str): The base directory to search.
 
     Returns:
-        list: List of directories containing at least one .nii file.
+        list: List of directories containing at least one .nii.gz file with the modality.
     """
     nii_directories = []
     for root, dirs, files in os.walk(base_dir):
-        if any(file == "converted.nii" for file in files):
-            if root.count(modality) == 2:
-                nii_directories.append(root)
-            #else statement needed <<<!!!!
-
+        print(root)
+        for file in files:
+            if file.endswith(".nii.gz") and modality in root and "cleaned" in file:
+                nii_directories.append(os.path.join(root, file))
+                break
     return nii_directories
 
 def visualize_anomaly_overlay(original_slice: torch.Tensor, anomaly_map: torch.Tensor, save_path: str = None):
@@ -137,8 +129,8 @@ def visualize_anomaly_overlay(original_slice: torch.Tensor, anomaly_map: torch.T
 
 def main():
     parser = argparse.ArgumentParser(description='Inference with Feature Autoencoder')
-    parser.add_argument('--checkpoint', type=str, default="./saved_models/model_epoch_35.pth", help='Path to the model checkpoint file')
-    parser.add_argument('--input_dir', type=str, default="D:/Data/FLAIR_T2_ss/ADNI/", help='Directory containing DICOM directories for inference')
+    parser.add_argument('--checkpoint', type=str, default="./saved_models/epoch_6_batchsize_4_lr_0.001.pth", help='Path to the model checkpoint file')
+    parser.add_argument('--input_dir', type=str, default="D:/VascularData/data/nii/", help='Directory containing DICOM directories for inference')
     parser.add_argument('--output_dir', type=str, default='./anomaly_maps', help='Directory to save anomaly map visualizations')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size for inference')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='Device to use for inference')
@@ -156,7 +148,7 @@ def main():
     config.extractor_cnn_layers = ['layer1', 'layer2']
     config.keep_feature_prop = 1.0
     config.random_extractor = False
-    config.loss_fn = 'mse'
+    config.loss_fn = 'ssim'
 
     model = FeatureReconstructor(config).to(args.device)
     
@@ -164,35 +156,30 @@ def main():
     model.eval()
 
     nii_directories = find_nii_directories(args.input_dir)
-    print(nii_directories)
     if len(nii_directories) == 0:
         print(f"No DICOM directories found in {args.input_dir}")
         return
 
-    inference_dataset = InferenceDataset(nii_directories)
+    inference_dataset = Nifti3DDataset(nii_directories)
     inference_loader = DataLoader(inference_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
     with torch.no_grad():
         for batch_idx, (volumes, directories) in enumerate(tqdm(inference_loader, desc="Inference")):
             volumes = volumes.to(args.device)  
             B, C, D, H, W = volumes.shape
-
+            print(volumes.shape)
             # Flatten the slices into (B*D, 1, H, W) for per-slice anomaly detection
             volumes_slices = volumes.view(B * D, C, H, W)  # Shape: (B*D, 1, H, W)
 
-            # Predict anomaly for each slice
             anomaly_map, anomaly_score = model.predict_anomaly(volumes_slices)  # anomaly_map: (B*D, 1, H, W)
-            #print(anomaly_map.shape)
             anomaly_map = anomaly_map.view(B, D, 1, H, W)  # Reshape back to (B, D, 1, H, W)
 
-            # For visualization, select the middle slice of each volume
             middle_slice = D // 2
             for i in range(B):
                 dir_path = directories[i]
                 volume_id = os.path.basename(dir_path.rstrip('/\\'))
                 path_id = dir_path.split('/')[-1].replace('\\','.')
 
-                # Extract the original MR slice and corresponding anomaly map
                 original_slice = volumes[i, 0, middle_slice, :, :]  # Shape: (H, W)
                 single_anomaly_map = anomaly_map[i, middle_slice, 0, :, :]  # Shape: (H, W)
 

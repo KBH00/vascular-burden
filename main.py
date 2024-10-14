@@ -4,26 +4,51 @@ import argparse
 from Data.dataload import get_dataloaders
 from models.models import FeatureReconstructor
 from utils.pytorch_ssim import SSIMLoss  
+from analysis.vis import visualize_volume
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
 
-#D:/VascularData/data/nii
-#D:/Data/FLAIR_T2_ss/ADNI
 #/home/kbh/Downloads/nii
-
+#D:/VascularData/data/nii
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
     parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
-    parser.add_argument('--batch_size', type=int, default=12 , help='Batch size for DataLoaders')
-    parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
+    parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+
+    parser.add_argument('--image_size', type=int,
+                         default=128, help='Image size')
+    parser.add_argument('--slice_range', type=int,
+                            nargs='+', default=(65, 145), help='Slice range')
+    parser.add_argument('--normalize', type=bool,
+                            default=False, help='Normalize images between 0 and 1')
+    parser.add_argument('--equalize_histogram', type=bool,
+                            default=True, help='Equalize histogram')
+
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate for optimizer')
     parser.add_argument('--save_dir', type=str, default='./saved_models', help='Directory to save model checkpoints')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='Device to use for training')
     return parser.parse_args()
+
+import matplotlib.pyplot as plt
+
+def visualize_volume(volumes, num_slices=5):
+    B, _, H, W = volumes.shape  # Adjust to match the shape [batch size, 1, 128, 128]
+    
+    # Take the first volume from the batch (index 0)
+    volume = volumes[0, 0].cpu().numpy()  # Shape: [128, 128]
+    
+    # Choose the step to evenly sample slices from the height (H)
+    slice_step = max(1, H // num_slices)
+    
+    plt.imshow(volume, cmap="gray")  # No need for volume[slice_idx] since it's already 2D
+    plt.axis('off')
+    plt.show()
+
 
 def main():
     args = parse_args()
@@ -34,7 +59,8 @@ def main():
         batch_size=args.batch_size,
         transform=None,  
         validation_split=0.1,
-        seed=42
+        seed=42,
+        config=args
     )
 
     from argparse import Namespace
@@ -48,7 +74,6 @@ def main():
     config.keep_feature_prop = 1.0
     config.random_extractor = False
     config.loss_fn = 'ssim'
-    # config.in_channels will be set by FeatureReconstructor based on Extractor
 
     model = FeatureReconstructor(config).to(args.device)
 
@@ -59,26 +84,26 @@ def main():
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
-    # optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+
+    best_val_loss = float('inf') 
 
     for epoch in range(1, args.epochs + 1):
         model.train()
         running_loss = 0.0
-        for batch_idx, (volumes, _) in enumerate(train_loader):
-            volumes = volumes.to(args.device)  # Shape: (B, 1, D, H, W)
+        for batch_idx, volumes in enumerate(train_loader):
+            optimizer.zero_grad()
+            volumes = volumes.to(args.device)  # Shape: (B, 1, H, W)
+            print(volumes.shape)
+            #visualize_volume(volumes, num_slices=5)
             
-            B, C, D, H, W = volumes.shape
-            volumes_slices = volumes.view(B * D, C, H, W)  # Shape: (B*D, 1, H, W)
 
+            # B, H, W, D = volumes.shape
+            # volumes_slices = volumes.view(B*D, 1, H, W)  # Shape: (B*D, 1, H, W)
+            # print(volumes_slices.shape)
             # Forward pass
-            # feats, rec = model(volumes_slices)  # feats: (B*D, C_feats, H', W'), rec: same
-            # loss_dict = model.loss(feats)
-            loss_dict = model.loss(volumes_slices)
-
+            loss_dict = model.loss(volumes)
             loss = loss_dict['rec_loss']
 
-            optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -86,7 +111,7 @@ def main():
             running_loss += loss.item()
 
             if (batch_idx + 1) % 10 == 0:
-                print(f"Epoch [{epoch}/{args.epochs}], Step [{batch_idx +1}/{len(train_loader)}], Loss: {loss.item():.4f}")
+                print(f"Epoch [{epoch}/{args.epochs}], Step [{batch_idx + 1}/{len(train_loader)}], Loss: {loss.item():.4f}")
 
         epoch_loss = running_loss / len(train_loader)
         print(f"Epoch [{epoch}/{args.epochs}], Average Loss: {epoch_loss:.4f}")
@@ -94,15 +119,13 @@ def main():
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for volumes, _ in validation_loader:
+            for volumes in validation_loader:
                 volumes = volumes.to(args.device)
-                B, C, D, H, W = volumes.shape
-                volumes_slices = volumes.view(B * D, C, H, W)
+                #B, C, D, H, W = volumes.shape
+                #volumes_slices = volumes.view(B * D, C, H, W)
 
-                loss_dict = model.loss(volumes_slices)
-
+                loss_dict = model.loss(volumes)
                 loss = loss_dict['rec_loss']
-
                 val_loss += loss.item()
 
         val_loss /= len(validation_loader)
@@ -110,28 +133,26 @@ def main():
 
         scheduler.step()
 
-        if epoch%3==0:
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss  
             os.makedirs(args.save_dir, exist_ok=True)
-            save_path = os.path.join(
+            best_model_path = os.path.join(
                 args.save_dir, 
-                f"model_epoch_{epoch}_batchsize_{args.batch_size}_lr_{args.lr}.pth"
+                f"best_model_epoch_{epoch}_batchsize_{args.batch_size}_lr_{args.lr}.pth"
             )
-            model.save(config, f"epoch_{epoch}_batchsize_{args.batch_size}_lr_{args.lr}.pth", directory=args.save_dir)
-            
-            print(f"Model saved to {save_path}")
+            model.save(config, f"best_model.pth", directory=args.save_dir)
+            print(f"New best model saved to {best_model_path}")
 
     model.eval()
     test_loss = 0.0
     with torch.no_grad():
-        for volumes, _ in test_loader:
+        for volumes in test_loader:
             volumes = volumes.to(args.device)
-            B, C, D, H, W = volumes.shape
-            volumes_slices = volumes.view(B * D, C, H, W)
+            # B, C, D, H, W = volumes.shape
+            # volumes_slices = volumes.view(B * D, C, H, W)
 
-            loss_dict = model.loss(volumes_slices)
-
+            loss_dict = model.loss(volumes)
             loss = loss_dict['rec_loss']
-
             test_loss += loss.item()
 
     test_loss /= len(test_loader)
