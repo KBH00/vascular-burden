@@ -4,7 +4,7 @@ import argparse
 from Data.dataload import get_dataloaders
 from models.models import FeatureReconstructor
 from utils.pytorch_ssim import SSIMLoss  
-from analysis.vis import visualize_volume
+from analysis.vis import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -36,18 +36,6 @@ def parse_args():
 
 import matplotlib.pyplot as plt
 
-def visualize_volume(volumes, num_slices=5):
-    B, _, H, W = volumes.shape  # Adjust to match the shape [batch size, 1, 128, 128]
-    
-    # Take the first volume from the batch (index 0)
-    volume = volumes[0, 0].cpu().numpy()  # Shape: [128, 128]
-    
-    # Choose the step to evenly sample slices from the height (H)
-    slice_step = max(1, H // num_slices)
-    
-    plt.imshow(volume, cmap="gray")  # No need for volume[slice_idx] since it's already 2D
-    plt.axis('off')
-    plt.show()
 
 
 def main():
@@ -123,10 +111,13 @@ def main():
                 volumes = volumes.to(args.device)
                 #B, C, D, H, W = volumes.shape
                 #volumes_slices = volumes.view(B * D, C, H, W)
+                anomaly_map, anomaly_score = model.predict_anomaly(volumes)
 
                 loss_dict = model.loss(volumes)
                 loss = loss_dict['rec_loss']
                 val_loss += loss.item()
+                plot_anomaly_map_with_original(volumes, anomaly_map, slice_idx=0)
+
 
         val_loss /= len(validation_loader)
         print(f"Validation Loss: {val_loss:.4f}")

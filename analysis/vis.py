@@ -2,7 +2,37 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 import numpy as np
 
-import matplotlib.pyplot as plt
+
+def visualize_volume(volumes, num_slices=5):
+    B, _, H, W = volumes.shape  # Adjust to match the shape [batch size, 1, 128, 128]
+    
+    # Take the first volume from the batch (index 0)
+    volume = volumes[0, 0].cpu().numpy()  # Shape: [128, 128]
+    
+    # Choose the step to evenly sample slices from the height (H)
+    slice_step = max(1, H // num_slices)
+    
+    plt.imshow(volume, cmap="gray")  # No need for volume[slice_idx] since it's already 2D
+    plt.axis('off')
+    plt.show()
+
+def plot_anomaly_map_with_original(original, anomaly_map, slice_idx=0):
+    # Plot original and anomaly map
+    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+
+    # Convert tensors to NumPy arrays
+    original = original.cpu().numpy()[slice_idx, 0]  # shape: [H, W]
+    anomaly_map = anomaly_map.cpu().numpy()[slice_idx, 0]  # shape: [H, W]
+
+    axs[0].imshow(original, cmap='gray')
+    axs[0].set_title('Original Image')
+    axs[0].axis('off')
+
+    axs[1].imshow(anomaly_map, cmap='hot')
+    axs[1].set_title('Anomaly Map')
+    axs[1].axis('off')
+
+    plt.show()
 
 def visualize_volume(volumes, num_slices=5):
     """

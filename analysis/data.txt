@@ -1,0 +1,1 @@
+scp -r kbh@143.248.31.188:/home/kbh/Code/vascular-burden/saved_models/ D:\
