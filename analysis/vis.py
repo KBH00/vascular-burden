@@ -16,22 +16,44 @@ def visualize_volume(volumes, num_slices=5):
     plt.axis('off')
     plt.show()
 
-def plot_anomaly_map_with_original(original, anomaly_map, slice_idx=0):
-    # Plot original and anomaly map
-    fig, axs = plt.subplots(1, 2, figsize=(8, 4))
+import matplotlib.pyplot as plt
+import numpy as np
 
+def plot_anomaly_map_with_original(original, anomaly_map, anomaly_score, threshold=0.5):
+    batch_size = original.shape[0]  # Get the batch size
     # Convert tensors to NumPy arrays
-    original = original.cpu().numpy()[slice_idx, 0]  # shape: [H, W]
-    anomaly_map = anomaly_map.cpu().numpy()[slice_idx, 0]  # shape: [H, W]
+    original = original.cpu().numpy()  # shape: [B, 1, H, W]
+    anomaly_map = anomaly_map.cpu().numpy()  # shape: [B, 1, H, W]
 
-    axs[0].imshow(original, cmap='gray')
-    axs[0].set_title('Original Image')
-    axs[0].axis('off')
+    # Create a figure with multiple subplots for each image in the batch
+    fig, axs = plt.subplots(batch_size, 2, figsize=(10, batch_size * 5))
 
-    axs[1].imshow(anomaly_map, cmap='hot')
-    axs[1].set_title('Anomaly Map')
-    axs[1].axis('off')
+    for i in range(batch_size):
+        # Extract the current original and anomaly map
+        original_img = original[i, 0]  # shape: [H, W]
+        anomaly_img = anomaly_map[i, 0]  # shape: [H, W]
 
+        # Create a mask for the anomaly map based on the threshold
+        mask = anomaly_score[i] > threshold
+
+        # Create a masked anomaly map
+        masked_anomaly_map = np.zeros_like(anomaly_img)  # Initialize a zero array for the masked anomaly map
+        if mask:  # If the anomaly score exceeds the threshold
+            masked_anomaly_map = anomaly_img  # Keep the entire anomaly map
+        else:
+            masked_anomaly_map[:] = np.nan  # Set the entire masked map to NaN to visualize it as empty
+
+        # Display the original image
+        axs[i, 0].imshow(original_img, cmap='gray')
+        axs[i, 0].set_title(f'Original Image {i+1}')
+        axs[i, 0].axis('off')
+
+        # Display the masked anomaly map
+        axs[i, 1].imshow(masked_anomaly_map, cmap='hot')
+        axs[i, 1].set_title(f'Anomaly Map {i+1} (Score: {anomaly_score[i].item():.4f})')
+        axs[i, 1].axis('off')
+
+    plt.tight_layout()
     plt.show()
 
 def visualize_volume(volumes, num_slices=5):

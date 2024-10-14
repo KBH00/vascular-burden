@@ -12,13 +12,14 @@ import os
 
 #/home/kbh/Downloads/nii
 #D:/VascularData/data/nii
+#D:/Download/Downloads/nii
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
     parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
     parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
-    parser.add_argument('--epochs', type=int, default=20, help='Number of training epochs')
+    parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
 
     parser.add_argument('--image_size', type=int,
                          default=128, help='Image size')
@@ -34,9 +35,6 @@ def parse_args():
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu', help='Device to use for training')
     return parser.parse_args()
 
-import matplotlib.pyplot as plt
-
-
 
 def main():
     args = parse_args()
@@ -48,7 +46,8 @@ def main():
         transform=None,  
         validation_split=0.1,
         seed=42,
-        config=args
+        config=args,
+        inf=False,
     )
 
     from argparse import Namespace

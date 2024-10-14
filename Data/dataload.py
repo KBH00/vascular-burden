@@ -97,7 +97,7 @@ def load_images(files: List[str], config) -> np.ndarray:
     return load_files_to_ram(files, load_fn)
 
 def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
-                    validation_split=0.1, test_split=0.1, seed=42, config=None):
+                    validation_split=0.1, test_split=0.1, seed=42, config=None, inf=False):
     """
     Prepare and return DataLoaders for training, validation, and testing.
 
@@ -124,18 +124,26 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     print("Data load....")
 
     train_directories = find_nii_directories(base_dir=train_base_dir, modality=modality)
-    #train_directories = train_directories[:4]
+    if inf is True:
+        train_directories = train_directories[:4]
+        train_imgs = np.concatenate(load_images(train_directories, config))
+        validation_dataset = TrainDataset(train_imgs)
+        validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
+        return None, validation_loader, None
+
+
     train_imgs = np.concatenate(load_images(train_directories, config))
     #train_dataset = Nifti3DDataset(train_directories, transform=transform, config=config)
     train_dataset =TrainDataset(train_imgs)
 
     total_size = len(train_dataset)
     validation_size = int(total_size * validation_split)
-    test_size = int(total_size * test_split)
+    test_size = int(total_size * test_split)    
     train_size = total_size - validation_size - test_size
 
     train_dataset, validation_dataset, test_dataset = random_split(train_dataset, [train_size, validation_size, test_size])
 
+    
     #train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
