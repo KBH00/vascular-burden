@@ -116,7 +116,7 @@ def main():
     learning_rates = [1e-3, 5e-4, 1e-4]  # List of learning rates to experiment with
     image_sizes = [64, 128, 256]  # Different image sizes to experiment with
     dropout_rates = [0.2, 0.25, 0.3]  # Dropout rates to experiment with
-    hidden_dims_list = [[100, 150, 200, 300], [128, 256, 512], [64, 128, 256]]  # Different hidden layer configurations
+    hidden_dims_list = [[50, 100, 150, 200], [100, 150, 200, 300], [150, 200, 250, 350], [50, 100, 150, 250]]  # Different hidden layer configurations
     loss_functions = ['ssim', 'mse']  # Different loss functions (could add more like 'l1', etc.)
     optimizers = ['adam', 'sgd']  # Different optimizers to try
 
