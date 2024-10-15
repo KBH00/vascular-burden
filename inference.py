@@ -11,7 +11,7 @@ import os
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
     parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
-    parser.add_argument('--train_base_dir', type=str, default="D:/Download/Downloads/nii", help='Base directory for training DICOM files')
+    parser.add_argument('--train_base_dir', type=str, default="D:/VascularData/data/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
     parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=50, help='Number of training epochs')
@@ -30,6 +30,18 @@ def parse_args():
     parser.add_argument('--device', type=str, default='cpu' if torch.cuda.is_available() else 'cpu', help='Device to use for training')
     return parser.parse_args()
 
+def visualize_volume(volumes, num_slices=5):
+    B, _, H, W = volumes.shape  # Adjust to match the shape [batch size, 1, 128, 128]
+    
+    # Take the first volume from the batch (index 0)
+    volume = volumes[0, 0].cpu().numpy()  # Shape: [128, 128]
+    
+    # Choose the step to evenly sample slices from the height (H)
+    slice_step = max(1, H // num_slices)
+    
+    plt.imshow(volume, cmap="gray")  # No need for volume[slice_idx] since it's already 2D
+    plt.axis('off')
+    plt.show()
 
 def main():
     args = parse_args()
@@ -77,7 +89,7 @@ def main():
             loss_dict = model.loss(volumes)
             loss = loss_dict['rec_loss']
             val_loss += loss.item()
-            plot_anomaly_map_with_original(volumes, anomaly_map, anomaly_score, 0.01)
+            plot_anomaly_map_with_original(volumes, anomaly_map, anomaly_score, -0.22)
 
 
 if __name__ == '__main__':

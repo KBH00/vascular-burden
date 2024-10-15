@@ -19,6 +19,7 @@ def visualize_volume(volumes, num_slices=5):
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def plot_anomaly_map_with_original(original, anomaly_map, anomaly_score, threshold=0.5):
     batch_size = original.shape[0]  # Get the batch size
     # Convert tensors to NumPy arrays

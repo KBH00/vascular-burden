@@ -40,37 +40,6 @@ def load_nii(path: str, size: int = None, primary_axis: int = 0,
     volume = np.moveaxis(volume, primary_axis, 0)
     #print("second", volume.shape)
     return volume, affine
-
-import matplotlib.pyplot as plt
-import torch
-
-def visualize_volume(volumes, num_slices=5):
-    """
-    Visualize a volume by displaying slices along the depth axis.
-
-    Args:
-        volumes: The volume to visualize, shape expected to be [D, H, W].
-                 Can be a PyTorch tensor or a NumPy array.
-        num_slices: The number of slices to display along the depth axis.
-    """
-    # Check if the input is a PyTorch tensor and convert to NumPy if necessary
-    if isinstance(volumes, torch.Tensor):
-        volumes = volumes.detach().cpu().numpy()  # Convert to NumPy array if it's a PyTorch tensor
-
-    # Shape: [D, H, W], where D is depth (number of slices), H is height, W is width
-    D, H, W = volumes.shape
-
-    # Choose the step to evenly sample `num_slices` along the depth axis
-    slice_step = max(1, D // num_slices)
-
-    # Plot the selected slices
-    plt.figure(figsize=(15, 5))
-    for i in range(num_slices):
-        slice_idx = i * slice_step  # Select slices evenly spaced along the depth axis
-        plt.subplot(1, num_slices, i + 1)
-        plt.imshow(volumes[slice_idx], cmap="gray")  # Display the slice at depth `slice_idx`
-        plt.title(f"Slice {slice_idx}")
-        plt.axis('off')
     
 
 def load_nii_nn(path: str, size: int = None,
