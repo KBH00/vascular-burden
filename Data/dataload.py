@@ -113,7 +113,6 @@ class AugmentedTrainDataset(Dataset):
     def __getitem__(self, idx):
         return self.augmented_imgs[idx]
 
-anomal_dirs = []
 def check_normal(root, filtered_df):
 
     for subject_id in filtered_df['subject_id']:
@@ -133,6 +132,7 @@ def find_nii_directories(base_dir, csv_path, modality="FLAIR"):
         list: List of directories containing at least one .nii.gz file with the modality.
     """
     nii_directories = list()
+    anomal_directories = list()
     df = pd.read_csv(csv_path, sep=',', quotechar='"') 
     filtered_df = df[df['PXPERIPH'] == 2]
 
@@ -146,10 +146,10 @@ def find_nii_directories(base_dir, csv_path, modality="FLAIR"):
                     break
 
                 else:
-                    #print(root)
+                    anomal_directories.append(os.path.join(root, file))
                     break
     print(len(nii_directories))
-    return nii_directories
+    return nii_directories, anomal_directories
 
 from typing import List, Tuple, Sequence
 
@@ -201,12 +201,12 @@ def get_dataloaders(train_base_dir, csv_path, modality, batch_size=4, transform=
         
     # print(train_directories)
 
-    train_directories = find_nii_directories(train_base_dir, csv_path,modality)        
+    train_directories, anomal_directories = find_nii_directories(train_base_dir, csv_path,modality)        
     #train_directories = [find_nii_directories(base_dir=sub_dir, modality=modality) for sub_dir in dirList]
     #train_directories = find_nii_directories(config.train_base_dir)
     if inf is True:
-        train_directories = train_directories[:4]
-        train_imgs = np.concatenate(load_images(train_directories, config))
+        #train_directories = train_directories[:4]
+        train_imgs = np.concatenate(load_images(anomal_directories, config))
         #train_dataset = AugmentedTrainDataset(train_imgs, transform=transform)
         validation_dataset = TrainDataset(train_imgs)
         validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
