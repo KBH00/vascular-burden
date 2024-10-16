@@ -9,20 +9,20 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
-
+#/home/kbh/Downloads/csv/abnormal.csv
 #/home/kbh/Downloads/nii
 #D:/VascularData/data/nii
 #D:/Download/Downloads/nii
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Feature Autoencoder on 3D DICOM Images')
-    parser.add_argument('--csv_path', type=str, default="C:/Users/kbh/Desktop/CNI/test/updated_subject_paths.csv", help='Path to the CSV file containing DICOM paths and labels')
-    parser.add_argument('--train_base_dir', type=str, default="/home/kbh/Downloads/nii", help='Base directory for training DICOM files')
+    parser.add_argument('--csv_path', type=str, default="D:/Data/vsclr_csv/All Subjects_Peripheral Vascular.csv", help='Path to the CSV file containing DICOM paths and labels')
+    parser.add_argument('--train_base_dir', type=str, default="D:/VascularData/data/nii", help='Base directory for training DICOM files')
     parser.add_argument('--modality', type=str, default="FLAIR", help='Data modality')
     parser.add_argument('--batch_size', type=int, default=32 , help='Batch size for DataLoaders')
     parser.add_argument('--epochs', type=int, default=500, help='Number of training epochs')
 
     parser.add_argument('--image_size', type=int,
-                         default=128, help='Image size')
+                         default=256, help='Image size')
     parser.add_argument('--slice_range', type=int,
                             nargs='+', default=(65, 145), help='Slice range')
     parser.add_argument('--normalize', type=bool,
@@ -41,6 +41,7 @@ def main():
 
     train_loader, validation_loader, test_loader = get_dataloaders(
         train_base_dir=args.train_base_dir,
+        csv_path=args.csv_path,
         modality=args.modality,
         batch_size=args.batch_size,
         transform=None,  

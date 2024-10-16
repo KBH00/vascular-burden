@@ -5,7 +5,8 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms
 from functools import partial
 from Data.data_utils import load_files_to_ram, load_nii_nn
-
+from Data.burden_list import dirList
+import pandas as pd
 
 class Nifti3DDataset(Dataset):
     def __init__(self, directories, transform=None, labels=None, config=None):
@@ -75,7 +76,6 @@ class AugmentedTrainDataset(Dataset):
         self.original_imgs = imgs
         self.transform = transform
 
-        # Ensure the input is in the shape [320, 1, 256, 256]
         assert len(self.original_imgs.shape) == 4, "Input images should be 4D: [N, 1, H, W]"
 
         # Apply the transformations (normalization and flips)
@@ -113,7 +113,16 @@ class AugmentedTrainDataset(Dataset):
     def __getitem__(self, idx):
         return self.augmented_imgs[idx]
 
-def find_nii_directories(base_dir, modality="FLAIR"):
+def check_normal(root, csv_path):
+    df = pd.read_csv(csv_path, sep=',', quotechar='"') 
+    filtered_df = df[df['PXPERIPH'] == 2]
+    for subject_id in filtered_df['subject_id']:
+        if subject_id in root:
+            return False
+    
+    return True
+
+def find_nii_directories(base_dir, csv_path, modality="FLAIR"):
     """
     Recursively find all directories containing .nii.gz files with specific criteria.
 
@@ -124,11 +133,20 @@ def find_nii_directories(base_dir, modality="FLAIR"):
         list: List of directories containing at least one .nii.gz file with the modality.
     """
     nii_directories = []
+
+    #for subject_id in filtered_df['subject_id']:
     for root, dirs, files in os.walk(base_dir):
         for file in files:
             if file.endswith(".nii.gz") and modality in file and "cleaned" in file:
-                nii_directories.append(os.path.join(root, file))
-                break
+                #if subject_id not in root:
+                if check_normal(root, csv_path):
+                    nii_directories.append(os.path.join(root, file))
+                    break
+                else:
+                    #print(root)
+                    break
+
+    print(nii_directories)
     return nii_directories
 
 from typing import List, Tuple, Sequence
@@ -148,8 +166,8 @@ def load_images(files: List[str], config) -> np.ndarray:
                       equalize_histogram=config.equalize_histogram)
     return load_files_to_ram(files, load_fn)
 
-dirList = ['D:/VascularData/data/nii\\027_S_0074', 'D:/VascularData/data/nii\\018_S_2155', 'D:/VascularData/data/nii\\027_S_2219', 'D:/VascularData/data/nii\\094_S_2238', 'D:/VascularData/data/nii\\127_S_1427', 'D:/VascularData/data/nii\\068_S_2315', 'D:/VascularData/data/nii\\041_S_4037', 'D:/VascularData/data/nii\\099_S_4086', 'D:/VascularData/data/nii\\041_S_4143', 'D:/VascularData/data/nii\\021_S_4254', 'D:/VascularData/data/nii\\137_S_4351', 'D:/VascularData/data/nii\\018_S_4399', 'D:/VascularData/data/nii\\137_S_4466', 'D:/VascularData/data/nii\\006_S_4485', 'D:/VascularData/data/nii\\137_S_4482', 'D:/VascularData/data/nii\\137_S_4536', 'D:/VascularData/data/nii\\021_S_4659', 'D:/VascularData/data/nii\\024_S_4674', 'D:/VascularData/data/nii\\127_S_4765', 'D:/VascularData/data/nii\\116_S_4855', 'D:/VascularData/data/nii\\041_S_4974', 'D:/VascularData/data/nii\\024_S_6005', 'D:/VascularData/data/nii\\941_S_6017', 'D:/VascularData/data/nii\\941_S_6052', 'D:/VascularData/data/nii\\024_S_6202', 'D:/VascularData/data/nii\\035_S_6306', 'D:/VascularData/data/nii\\019_S_6315', 'D:/VascularData/data/nii\\035_S_6380', 'D:/VascularData/data/nii\\341_S_6494', 'D:/VascularData/data/nii\\941_S_6496', 'D:/VascularData/data/nii\\116_S_6458', 'D:/VascularData/data/nii\\941_S_6514', 'D:/VascularData/data/nii\\941_S_6546', 'D:/VascularData/data/nii\\100_S_6493', 'D:/VascularData/data/nii\\941_S_6580', 'D:/VascularData/data/nii\\031_S_6715', 'D:/VascularData/data/nii\\016_S_6708', 'D:/VascularData/data/nii\\126_S_6724', 'D:/VascularData/data/nii\\016_S_6800', 'D:/VascularData/data/nii\\168_S_6860', 'D:/VascularData/data/nii\\137_S_6880', 'D:/VascularData/data/nii\\168_S_6902', 'D:/VascularData/data/nii\\016_S_6939', 'D:/VascularData/data/nii\\126_S_7060', 'D:/VascularData/data/nii\\941_S_10013', 'D:/VascularData/data/nii\\021_S_0337', 'D:/VascularData/data/nii\\011_S_10026', 'D:/VascularData/data/nii\\011_S_6303', 'D:/VascularData/data/nii\\035_S_10068', 'D:/VascularData/data/nii\\126_S_4514', 'D:/VascularData/data/nii\\068_S_0127', 'D:/VascularData/data/nii\\052_S_4944', 'D:/VascularData/data/nii\\126_S_0605', 'D:/VascularData/data/nii\\941_S_10212']
-def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
+
+def get_dataloaders(train_base_dir, csv_path, modality, batch_size=4, transform=None,
                     validation_split=0.1, test_split=0.1, seed=42, config=None, inf=False):
     """
     Prepare and return DataLoaders for training, validation, and testing.
@@ -168,19 +186,18 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     """
     if transform is None:
         transform = transforms.Compose([
-
             transforms.Normalize((0.5,), (0.5,)),
         ])
     torch.manual_seed(seed)
 
     print("Data load....")
-    train_directories =[]
-    for sub_dir in dirList:
-        tmp = find_nii_directories(sub_dir, modality)
-        for nii_paths in tmp:
-            train_directories.append(nii_paths)
-        
-    print(train_directories)
+    # train_directories =[]
+    # for sub_dir in dirList:
+    #     tmp = find_nii_directories(sub_dir, modality)
+    #     for nii_paths in tmp:
+    #         train_directories.append(nii_paths)
+
+    train_directories = find_nii_directories(train_base_dir, csv_path,modality)        
     #train_directories = [find_nii_directories(base_dir=sub_dir, modality=modality) for sub_dir in dirList]
     if inf is True:
         train_directories = train_directories[:4]
