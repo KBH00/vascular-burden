@@ -148,6 +148,7 @@ def find_nii_directories(base_dir, csv_path, modality="FLAIR"):
                 else:
                     #print(root)
                     break
+    print(len(nii_directories))
     return nii_directories
 
 from typing import List, Tuple, Sequence
