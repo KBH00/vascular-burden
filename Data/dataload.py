@@ -113,9 +113,9 @@ class AugmentedTrainDataset(Dataset):
     def __getitem__(self, idx):
         return self.augmented_imgs[idx]
 
-def check_normal(root, csv_path):
-    df = pd.read_csv(csv_path, sep=',', quotechar='"') 
-    filtered_df = df[df['PXPERIPH'] == 2]
+anomal_dirs = []
+def check_normal(root, filtered_df):
+
     for subject_id in filtered_df['subject_id']:
         if subject_id in root:
             return False
@@ -132,21 +132,22 @@ def find_nii_directories(base_dir, csv_path, modality="FLAIR"):
     Returns:
         list: List of directories containing at least one .nii.gz file with the modality.
     """
-    nii_directories = []
+    nii_directories = list()
+    df = pd.read_csv(csv_path, sep=',', quotechar='"') 
+    filtered_df = df[df['PXPERIPH'] == 2]
 
     #for subject_id in filtered_df['subject_id']:
     for root, dirs, files in os.walk(base_dir):
         for file in files:
             if file.endswith(".nii.gz") and modality in file and "cleaned" in file:
-                #if subject_id not in root:
-                if check_normal(root, csv_path):
+                if check_normal(root, filtered_df):
                     nii_directories.append(os.path.join(root, file))
+                    #nii_directories.add(os.path.join(root, file))
                     break
+
                 else:
                     #print(root)
                     break
-
-    print(nii_directories)
     return nii_directories
 
 from typing import List, Tuple, Sequence
