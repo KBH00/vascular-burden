@@ -174,14 +174,16 @@ def get_dataloaders(train_base_dir, modality, batch_size=4, transform=None,
     torch.manual_seed(seed)
 
     print("Data load....")
-    train_directories =[]
-    for sub_dir in dirList:
-        tmp = find_nii_directories(sub_dir, modality)
-        for nii_paths in tmp:
-            train_directories.append(nii_paths)
+    # train_directories =[]
+    # for sub_dir in dirList:
+    #     tmp = find_nii_directories(sub_dir, modality)
+    #     for nii_paths in tmp:
+    #         train_directories.append(nii_paths)
         
-    print(train_directories)
+    # print(train_directories)
     #train_directories = [find_nii_directories(base_dir=sub_dir, modality=modality) for sub_dir in dirList]
+
+    train_directories = find_nii_directories(config.train_base_dir)
     if inf is True:
         train_directories = train_directories[:4]
         train_imgs = np.concatenate(load_images(train_directories, config))

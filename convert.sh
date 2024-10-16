@@ -1,6 +1,6 @@
 
-INPUT_DIR="/mnt/d/VascularData/data/ADNI"
-OUTPUT_DIR="/mnt/d/VascularData/data/nii"
+INPUT_DIR="/mnt/d/VascularData/data/ADNI" #original data (e.g., dcm)
+OUTPUT_DIR="/mnt/d/VascularData/data/nii" #converted data path (e.g., nii or nii.gz)
 
 process_nifti() {
 	local input_file="$1"
